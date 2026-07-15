@@ -1,0 +1,461 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  OPERATOR
+  MERCHANT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMING
+  COMPLETED
+  EXPIRED
+  FAILED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED_L1
+  PROCESSING
+  COMPLETED
+  REJECTED
+  FAILED
+}
+
+enum WalletType {
+  HOT
+  COLD
+  MERCHANT
+  SWEEP
+}
+
+enum NetworkType {
+  TRC20 // USDT trên mạng TRON
+  BEP20 // USDT trên mạng BNB Smart Chain (BSC)
+}
+
+enum EnvironmentMode {
+  LIVE
+  SANDBOX
+}
+
+enum SweepStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id              String     @id @default(uuid())
+  email           String     @unique
+  password        String
+  role            UserRole   @default(MERCHANT)
+  status          UserStatus @default(ACTIVE)
+  twoFactorSecret String?
+  twoFactorEnabled Boolean   @default(false)
+  backupCodes     String?    @db.Text
+  telegramChatId  String?    // Chat ID cá nhân để nhận OTP export private key qua Telegram
+  emailVerifiedAt DateTime?  // null = chưa xác thực email (chặn login cho tài khoản merchant tự đăng ký)
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  merchant        Merchant?
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]
+  ipWhitelist     IpWhitelist[]
+  approvals       WithdrawalApproval[]
+  permissions     AdminPermission[]
+  loginAttempts   LoginAttempt[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model AdminPermission {
+  id         String   @id @default(uuid())
+  userId     String
+  resource   String   // merchants, transactions, withdrawals, wallets, settings, reports
+  canView    Boolean  @default(true)
+  canCreate  Boolean  @default(false)
+  canEdit    Boolean  @default(false)
+  canDelete  Boolean  @default(false)
+  canApprove Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, resource])
+  @@index([userId])
+  @@map("admin_permissions")
+}
+
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  userId    String?
+  email     String
+  ipAddress String
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([email])
+  @@index([ipAddress])
+  @@index([createdAt])
+  @@map("login_attempts")
+}
+
+model IpWhitelist {
+  id          String   @id @default(uuid())
+  userId      String?
+  merchantId  String?
+  ipAddress   String
+  label       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  user        User?     @relation(fields: [userId], references: [id])
+  merchant    Merchant? @relation(fields: [merchantId], references: [id])
+
+  @@index([userId])
+  @@index([merchantId])
+  @@index([ipAddress])
+  @@map("ip_whitelist")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([token])
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Merchant {
+  id                  String       @id @default(uuid())
+  userId              String       @unique
+  name                String
+  website             String?
+  callbackUrl         String?
+  webhookSecret       String
+  balance             Decimal      @default(0) @db.Decimal(20, 6)
+  frozenBalance       Decimal      @default(0) @db.Decimal(20, 6)
+  sandboxBalance      Decimal      @default(10000) @db.Decimal(20, 6)
+  feeRate             Decimal      @default(0.01) @db.Decimal(5, 4)
+  status              UserStatus   @default(ACTIVE)
+  ipRestrictionEnabled Boolean     @default(false)
+  withdrawal2FARequired Boolean    @default(true)
+  dailyWithdrawalLimit Decimal     @default(10000) @db.Decimal(20, 6)
+  referralCode        String       @unique // mã giới thiệu riêng của merchant này, dùng để mời merchant khác
+  referredByMerchantId String?     // merchant đã giới thiệu merchant này (nếu có, điền lúc đăng ký)
+  registrationIp      String?      // IP lúc đăng ký — dùng để phát hiện tự giới thiệu chính mình (cùng IP)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  deletedAt           DateTime?
+
+  user                User         @relation(fields: [userId], references: [id])
+  apiKeys             ApiKey[]
+  transactions        Transaction[]
+  withdrawals         Withdrawal[]
+  ipWhitelist         IpWhitelist[]
+  reconciliations     Reconciliation[]
+  merchantWallets     MerchantWallet[]
+  referredBy          Merchant?    @relation("MerchantReferrals", fields: [referredByMerchantId], references: [id])
+  referrals           Merchant[]   @relation("MerchantReferrals")
+  commissionsEarned   ReferralCommission[] @relation("CommissionsEarned")
+  commissionsGenerated ReferralCommission[] @relation("CommissionsGenerated")
+
+  @@index([userId])
+  @@index([status])
+  @@index([referredByMerchantId])
+  @@map("merchants")
+}
+
+model ReferralCommission {
+  id                 String   @id @default(uuid())
+  referrerMerchantId String   // merchant nhận hoa hồng (người giới thiệu)
+  referredMerchantId String   // merchant tạo ra giao dịch (người được giới thiệu)
+  transactionId      String   @unique // 1 giao dịch chỉ sinh hoa hồng 1 lần
+  amount             Decimal  @db.Decimal(20, 6)
+  commissionRate     Decimal  @db.Decimal(6, 4) // lưu lại tỉ lệ áp dụng tại thời điểm đó, để đổi rate sau này không ảnh hưởng lịch sử
+  createdAt          DateTime @default(now())
+
+  referrer           Merchant    @relation("CommissionsEarned", fields: [referrerMerchantId], references: [id])
+  referred           Merchant    @relation("CommissionsGenerated", fields: [referredMerchantId], references: [id])
+  transaction         Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([referrerMerchantId])
+  @@index([referredMerchantId])
+  @@map("referral_commissions")
+}
+
+model ApiKey {
+  id          String           @id @default(uuid())
+  merchantId  String
+  key         String           @unique
+  secret      String
+  name        String
+  environment EnvironmentMode  @default(LIVE)
+  isActive    Boolean          @default(true)
+  lastUsedAt  DateTime?
+  lastUsedIp  String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  merchant    Merchant         @relation(fields: [merchantId], references: [id])
+
+  @@index([key])
+  @@index([merchantId])
+  @@map("api_keys")
+}
+
+model Wallet {
+  id              String      @id @default(uuid())
+  address         String      @unique
+  privateKey      String
+  type            WalletType  @default(HOT)
+  network         NetworkType @default(TRC20)
+  balance         Decimal     @default(0) @db.Decimal(20, 6)
+  trxBalance      Decimal     @default(0) @db.Decimal(20, 6)
+  isActive        Boolean     @default(true)
+  inRotation      Boolean     @default(true)
+  label           String?
+  lastAssignedAt  DateTime?
+  assignedCount   Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  transactions    Transaction[]
+  sweeps          SweepLog[]
+  merchantWallets MerchantWallet[]
+
+  @@index([address])
+  @@index([type])
+  @@index([inRotation])
+  @@map("wallets")
+}
+
+// Dedicated/pinned wallet per merchant (optional - for high-volume merchants)
+model MerchantWallet {
+  id          String   @id @default(uuid())
+  merchantId  String
+  walletId    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  merchant    Merchant @relation(fields: [merchantId], references: [id])
+  wallet      Wallet   @relation(fields: [walletId], references: [id])
+
+  @@unique([merchantId, walletId])
+  @@index([merchantId])
+  @@map("merchant_wallets")
+}
+
+model SweepLog {
+  id           String      @id @default(uuid())
+  walletId     String
+  toAddress    String
+  amount       Decimal     @db.Decimal(20, 6)
+  txHash       String?     @unique
+  status       SweepStatus @default(PENDING)
+  errorMessage String?
+  createdAt    DateTime    @default(now())
+  completedAt  DateTime?
+
+  wallet       Wallet      @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([status])
+  @@map("sweep_logs")
+}
+
+model Transaction {
+  id                    String            @id @default(uuid())
+  merchantId            String
+  walletId              String?
+  orderId               String
+  txHash                String?           @unique
+  amount                Decimal           @db.Decimal(20, 6)
+  fee                   Decimal           @default(0) @db.Decimal(20, 6)
+  netAmount             Decimal           @default(0) @db.Decimal(20, 6)
+  fromAddress           String?
+  toAddress             String?
+  network               NetworkType?
+  status                TransactionStatus @default(PENDING)
+  environment           EnvironmentMode   @default(LIVE)
+  confirmations         Int               @default(0)
+  requiredConfirmations Int               @default(20)
+  metadata              Json?
+  returnUrl             String?
+  expiredAt             DateTime
+  confirmedAt           DateTime?
+  webhookSentAt         DateTime?
+  webhookAttempts       Int               @default(0)
+  reconciledAt          DateTime?
+  reconciliationId      String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  merchant              Merchant          @relation(fields: [merchantId], references: [id])
+  wallet                Wallet?           @relation(fields: [walletId], references: [id])
+  reconciliation        Reconciliation?   @relation(fields: [reconciliationId], references: [id])
+  referralCommission    ReferralCommission?
+
+  @@index([merchantId])
+  @@index([orderId])
+  @@index([txHash])
+  @@index([status])
+  @@index([toAddress])
+  @@index([createdAt])
+  @@index([environment])
+  @@map("transactions")
+}
+
+model Withdrawal {
+  id              String               @id @default(uuid())
+  merchantId      String
+  toAddress       String
+  amount          Decimal              @db.Decimal(20, 6)
+  fee             Decimal              @default(0) @db.Decimal(20, 6)
+  netAmount       Decimal              @default(0) @db.Decimal(20, 6)
+  txHash          String?              @unique
+  network         NetworkType          @default(TRC20)
+  status          WithdrawalStatus     @default(PENDING)
+  note            String?
+  requiresDualApproval Boolean         @default(true)
+  processedAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  merchant        Merchant             @relation(fields: [merchantId], references: [id])
+  approvals       WithdrawalApproval[]
+
+  @@index([merchantId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("withdrawals")
+}
+
+// Two-step (dual control) approval trail for withdrawals
+model WithdrawalApproval {
+  id           String     @id @default(uuid())
+  withdrawalId String
+  userId       String
+  step         Int        // 1 = first approver, 2 = second approver
+  action       String     // APPROVED | REJECTED
+  reason       String?
+  createdAt    DateTime   @default(now())
+
+  withdrawal   Withdrawal @relation(fields: [withdrawalId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@index([withdrawalId])
+  @@index([userId])
+  @@map("withdrawal_approvals")
+}
+
+// Daily/period reconciliation batches for merchants
+model Reconciliation {
+  id              String        @id @default(uuid())
+  merchantId      String
+  periodStart     DateTime
+  periodEnd       DateTime
+  expectedCount   Int
+  expectedVolume  Decimal       @db.Decimal(20, 6)
+  matchedCount    Int           @default(0)
+  matchedVolume   Decimal       @default(0) @db.Decimal(20, 6)
+  discrepancyCount Int          @default(0)
+  status          String        @default("PENDING") // PENDING | COMPLETED | DISCREPANCY
+  reportFileUrl   String?
+  createdAt       DateTime      @default(now())
+  completedAt     DateTime?
+
+  merchant        Merchant      @relation(fields: [merchantId], references: [id])
+  transactions    Transaction[]
+
+  @@index([merchantId])
+  @@index([periodStart, periodEnd])
+  @@map("reconciliations")
+}
+
+model FeeConfig {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  rate        Decimal  @db.Decimal(5, 4)
+  minFee      Decimal  @default(0) @db.Decimal(20, 6)
+  maxFee      Decimal? @db.Decimal(20, 6)
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("fee_configs")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   @db.Text
+  type      String   @default("string")
+  group     String   @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+  @@index([group])
+  @@map("system_settings")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
