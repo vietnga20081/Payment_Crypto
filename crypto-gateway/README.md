@@ -261,6 +261,12 @@ git remote add origin https://github.com/<username>/<repo>.git
 git push -u origin main
 ```
 
+Từ lần sau, mỗi khi sửa code xong chỉ cần:
+```bash
+bash scripts/sync.sh "mô tả thay đổi"
+```
+(gộp sẵn `git add` + `commit` + `push` — không cần nhớ 3 lệnh riêng lẻ)
+
 Sau đó vào tab **Actions** trên GitHub để xem kết quả mỗi lần push. Không cần cấu hình gì thêm — workflow tự chạy.
 
 **Không tự động deploy lên server** — CI này chỉ kiểm tra code, không SSH vào server để deploy thay bạn (tránh phải lưu SSH key/secret nhạy cảm lên GitHub cho 1 VPS đang chạy nhiều dự án khác). Bạn vẫn `git pull` + `bash scripts/deploy.sh` trên server như hiện tại — nếu muốn tự động luôn bước deploy, nói mình biết để thêm workflow riêng (cần bạn cung cấp SSH key deploy riêng, không dùng chung key VPS chính).
@@ -395,6 +401,8 @@ Nếu Đại lý gọi `POST /transactions/pay` **không truyền `network`**, g
 - **Admin → Giới thiệu (Ref)**: trang riêng để bật/tắt chương trình, cấu hình tỉ lệ hoa hồng + thời hạn hưởng (0 = vĩnh viễn), xem bảng xếp hạng top người giới thiệu.
 - Hoa hồng tự động: khi giao dịch của merchant được giới thiệu hoàn tất, `tron-listener`/`bsc-listener` tự tính `hoa hồng = phí dịch vụ × tỉ lệ` và cộng thẳng vào `balance` của người giới thiệu — mặc định **tắt** (`referral_enabled = false`), Admin cần bật thủ công ở trang Giới thiệu.
 - **Chống lạm dụng**: tự động chặn gắn quan hệ giới thiệu nếu người đăng ký dùng cùng IP với người giới thiệu (tài khoản vẫn tạo được, chỉ không tính hoa hồng — không chặn nhầm người dùng chung mạng/văn phòng khi IP không trùng); giới hạn hoa hồng tối đa/ngày cho mỗi người giới thiệu (cấu hình ở Admin → Giới thiệu, 0 = không giới hạn); chỉ giao dịch **LIVE thật trên blockchain** mới tính hoa hồng — giao dịch Sandbox không bao giờ sinh hoa hồng. Admin xem được danh sách các lượt bị chặn (nghi tự giới thiệu) ngay trong trang Giới thiệu.
+- **Số dư hoa hồng tách riêng**: hoa hồng cộng vào `referralBalance` — tách biệt hoàn toàn với `balance` (tiền từ giao dịch khách hàng). Merchant tự bấm "Chuyển vào số dư chính" ở trang Giới thiệu khi muốn rút (API rút tiền vẫn chỉ trừ từ `balance`). Admin xem được cả 2 số dư riêng biệt trong chi tiết Đại lý.
+- Admin → Đại lý giờ hiện luôn "Mã giới thiệu" + "Được giới thiệu bởi" trong chi tiết từng merchant.
 - Admin vẫn tạo merchant tay như cũ được (không cần xác thực email), có nút xác thực thủ công cho merchant gặp trục trặc.
 
 

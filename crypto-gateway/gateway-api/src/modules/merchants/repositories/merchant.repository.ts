@@ -23,7 +23,10 @@ export class MerchantRepository {
         where,
         skip: params.skip,
         take: params.take,
-        include: { user: { select: { email: true, status: true, lastLoginAt: true } } },
+        include: {
+          user: { select: { email: true, status: true, lastLoginAt: true } },
+          referredBy: { select: { id: true, name: true, referralCode: true } },
+        },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.merchant.count({ where }),

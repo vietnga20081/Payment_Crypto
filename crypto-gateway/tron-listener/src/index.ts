@@ -220,7 +220,7 @@ async function creditReferralCommission(tx: { id: string; merchantId: string; fe
       });
       await t.merchant.update({
         where: { id: merchant.referredByMerchantId! },
-        data: { balance: { increment: commissionAmount } },
+        data: { referralBalance: { increment: commissionAmount } },
       });
     });
 

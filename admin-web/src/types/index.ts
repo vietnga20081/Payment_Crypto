@@ -22,6 +22,7 @@ export interface Merchant {
   balance: string;
   frozenBalance: string;
   sandboxBalance: string;
+  referralBalance?: string;
   feeRate: string;
   status: UserStatus;
   ipRestrictionEnabled: boolean;
@@ -30,6 +31,8 @@ export interface Merchant {
   webhookSecret?: string;
   createdAt: string;
   user?: { email: string; status: UserStatus; lastLoginAt?: string };
+  referralCode?: string;
+  referredBy?: { id: string; name: string; referralCode: string } | null;
 }
 
 export interface Transaction {

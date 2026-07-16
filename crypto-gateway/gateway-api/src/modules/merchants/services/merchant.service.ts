@@ -72,6 +72,33 @@ export class MerchantService {
     await prisma.user.update({ where: { id: merchant.userId }, data: { emailVerifiedAt: new Date() } });
   }
 
+  /**
+   * Merchant tự chuyển toàn bộ hoa hồng giới thiệu (referralBalance) vào số dư
+   * chính (balance) — lúc đó mới rút được, vì API rút tiền chỉ trừ từ `balance`.
+   * Tách riêng bước này để merchant luôn phân biệt rõ tiền nào từ giao dịch,
+   * tiền nào từ giới thiệu, tự quyết định lúc nào gộp vào để rút.
+   */
+  async transferReferralBalance(merchantId: string) {
+    const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } });
+    if (!merchant) throw new NotFoundError('Merchant not found');
+
+    const amount = merchant.referralBalance;
+    if (Number(amount) <= 0) {
+      throw new AppError('Không có hoa hồng nào để chuyển', 400);
+    }
+
+    return prisma.$transaction(async (tx) => {
+      await tx.merchant.update({
+        where: { id: merchantId },
+        data: {
+          referralBalance: { decrement: amount },
+          balance: { increment: amount },
+        },
+      });
+      return { transferredAmount: amount };
+    });
+  }
+
   async getReferrals(merchantId: string) {
     const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } });
     if (!merchant) throw new NotFoundError('Merchant not found');

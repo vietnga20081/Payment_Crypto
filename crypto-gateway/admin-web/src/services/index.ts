@@ -59,6 +59,7 @@ export const merchantService = {
     totalCommissionEarned: string | number;
     commissionHistory: Array<{ id: string; amount: string; commissionRate: string; createdAt: string; referred: { name: string } }>;
   }>>('/merchant/referrals'),
+  transferReferralBalance: () => api.post<ApiResponse<{ transferredAmount: string | number }>>('/merchant/referrals/transfer-balance'),
 };
 
 // ── Transactions ─────────────────────────────────────────────────────────────

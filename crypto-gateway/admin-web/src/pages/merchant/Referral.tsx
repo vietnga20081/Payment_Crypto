@@ -1,16 +1,34 @@
-import { Card, Input, Typography, Space, Alert, Table, Tag, Statistic, Row, Col, message } from 'antd';
-import { GiftOutlined, CopyOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { Card, Input, Typography, Space, Alert, Table, Tag, Statistic, Row, Col, message, Button, Popconfirm } from 'antd';
+import { GiftOutlined, CopyOutlined, TeamOutlined, DollarOutlined, SwapOutlined } from '@ant-design/icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { merchantService } from '../../services';
 import { formatDate, formatUSDT } from '../../utils';
 
 export default function ReferralPage() {
+  const qc = useQueryClient();
+
   const { data, isLoading } = useQuery({
     queryKey: ['merchant-referrals'],
     queryFn: () => merchantService.getReferrals().then((r) => r.data.data),
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ['merchant-profile'],
+    queryFn: () => merchantService.getProfile().then((r) => r.data.data),
+  });
+
+  const transferMutation = useMutation({
+    mutationFn: () => merchantService.transferReferralBalance(),
+    onSuccess: (res) => {
+      message.success(`Đã chuyển ${formatUSDT(res.data.data.transferredAmount)} USDT vào số dư chính`);
+      qc.invalidateQueries({ queryKey: ['merchant-profile'] });
+      qc.invalidateQueries({ queryKey: ['merchant-referrals'] });
+    },
+    onError: (e: { response?: { data?: { message?: string } } }) => message.error(e.response?.data?.message || 'Lỗi chuyển số dư'),
+  });
+
   const copy = (text: string) => { navigator.clipboard.writeText(text); message.success('Đã sao chép'); };
+  const pendingReferralBalance = Number(profile?.referralBalance || 0);
 
   return (
     <div>
@@ -55,6 +73,39 @@ export default function ReferralPage() {
             </Space>
           </Card>
 
+          <Card style={{ marginBottom: 16, background: '#fffbe6', borderColor: '#ffe58f' }}>
+            <Row align="middle" gutter={16}>
+              <Col flex="auto">
+                <Statistic
+                  title="Số dư hoa hồng chưa chuyển (chưa rút được)"
+                  value={formatUSDT(pendingReferralBalance)}
+                  prefix={<DollarOutlined />}
+                  suffix="USDT"
+                />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Hoa hồng từ giới thiệu được cộng vào đây riêng, tách biệt với số dư giao dịch — bấm nút bên cạnh để chuyển vào số dư chính mới rút được.
+                </Typography.Text>
+              </Col>
+              <Col>
+                <Popconfirm
+                  title="Chuyển toàn bộ hoa hồng vào số dư chính?"
+                  description={`${formatUSDT(pendingReferralBalance)} USDT sẽ được cộng vào số dư chính và có thể rút bình thường.`}
+                  onConfirm={() => transferMutation.mutate()}
+                  okText="Chuyển" cancelText="Hủy"
+                  disabled={pendingReferralBalance <= 0}
+                >
+                  <Button
+                    type="primary" icon={<SwapOutlined />}
+                    disabled={pendingReferralBalance <= 0}
+                    loading={transferMutation.isPending}
+                  >
+                    Chuyển vào số dư chính
+                  </Button>
+                </Popconfirm>
+              </Col>
+            </Row>
+          </Card>
+
           <Row gutter={16} style={{ marginBottom: 16 }}>
             <Col xs={12}>
               <Card>
@@ -64,7 +115,7 @@ export default function ReferralPage() {
             <Col xs={12}>
               <Card>
                 <Statistic
-                  title="Tổng hoa hồng đã nhận"
+                  title="Tổng hoa hồng đã nhận (từ trước tới nay)"
                   value={formatUSDT(data.totalCommissionEarned)}
                   prefix={<DollarOutlined />}
                   suffix="USDT"

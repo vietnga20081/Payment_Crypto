@@ -186,7 +186,14 @@ export default function MerchantsPage() {
             <Descriptions.Item label="Email">{detailMerchant.user?.email}</Descriptions.Item>
             <Descriptions.Item label="Website">{detailMerchant.website || '-'}</Descriptions.Item>
             <Descriptions.Item label="Callback URL">{detailMerchant.callbackUrl || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Mã giới thiệu (Ref)">{detailMerchant.referralCode || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Được giới thiệu bởi">
+              {detailMerchant.referredBy
+                ? <>{detailMerchant.referredBy.name} <Tag>{detailMerchant.referredBy.referralCode}</Tag></>
+                : <Typography.Text type="secondary">Không có (đăng ký trực tiếp / Admin tạo)</Typography.Text>}
+            </Descriptions.Item>
             <Descriptions.Item label="Số dư">{formatUSDT(detailMerchant.balance)}</Descriptions.Item>
+            <Descriptions.Item label="Số dư hoa hồng Ref (chưa chuyển)">{formatUSDT(detailMerchant.referralBalance || 0)}</Descriptions.Item>
             <Descriptions.Item label="Số dư đóng băng">{formatUSDT(detailMerchant.frozenBalance)}</Descriptions.Item>
             <Descriptions.Item label="Phí">{(Number(detailMerchant.feeRate) * 100).toFixed(2)}%</Descriptions.Item>
             <Descriptions.Item label="Trạng thái"><Tag color={statusColor[detailMerchant.status]}>{statusLabel[detailMerchant.status]}</Tag></Descriptions.Item>

@@ -14,5 +14,6 @@ router.get('/api-keys', authenticate, authorize('MERCHANT'), ctrl.getApiKeys.bin
 router.post('/api-keys', authenticate, authorize('MERCHANT'), [body('name').notEmpty()], validate, ctrl.createApiKey.bind(ctrl));
 router.delete('/api-keys/:keyId', authenticate, authorize('MERCHANT'), ctrl.revokeApiKey.bind(ctrl));
 router.get('/referrals', authenticate, authorize('MERCHANT'), ctrl.getReferrals.bind(ctrl));
+router.post('/referrals/transfer-balance', authenticate, authorize('MERCHANT'), ctrl.transferReferralBalance.bind(ctrl));
 
 export default router;

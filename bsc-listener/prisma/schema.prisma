@@ -172,6 +172,7 @@ model Merchant {
   balance             Decimal      @default(0) @db.Decimal(20, 6)
   frozenBalance       Decimal      @default(0) @db.Decimal(20, 6)
   sandboxBalance      Decimal      @default(10000) @db.Decimal(20, 6)
+  referralBalance     Decimal      @default(0) @db.Decimal(20, 6) // hoa hồng giới thiệu — tách riêng, chưa gộp vào balance có thể rút
   feeRate             Decimal      @default(0.01) @db.Decimal(5, 4)
   status              UserStatus   @default(ACTIVE)
   ipRestrictionEnabled Boolean     @default(false)

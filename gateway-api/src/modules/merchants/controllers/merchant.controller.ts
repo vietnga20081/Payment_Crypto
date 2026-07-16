@@ -62,6 +62,13 @@ export class MerchantController {
     } catch (err) { next(err); }
   }
 
+  async transferReferralBalance(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await service.transferReferralBalance(req.user!.merchantId!);
+      sendSuccess(res, result, `Đã chuyển ${result.transferredAmount} USDT vào số dư chính`);
+    } catch (err) { next(err); }
+  }
+
   async resetOwnWebhookSecret(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       sendSuccess(res, await service.resetOwnWebhookSecret(req.user!.userId), 'Webhook secret đã được làm mới');
