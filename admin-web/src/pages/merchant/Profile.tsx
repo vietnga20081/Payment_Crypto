@@ -6,6 +6,7 @@ import { merchantService, authService } from '../../services';
 import { formatDate, formatUSDT } from '../../utils';
 import TwoFactorAuthCard from '../../components/common/TwoFactorAuthCard';
 import IpWhitelistCard from '../../components/common/IpWhitelistCard';
+import ActiveSessionsCard from '../../components/common/ActiveSessionsCard';
 
 export default function MerchantProfilePage() {
   const qc = useQueryClient();
@@ -167,6 +168,10 @@ export default function MerchantProfilePage() {
 
         <Col xs={24}>
           <IpWhitelistCard />
+        </Col>
+
+        <Col xs={24}>
+          <ActiveSessionsCard />
         </Col>
       </Row>
     </div>

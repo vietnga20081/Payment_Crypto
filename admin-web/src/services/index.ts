@@ -14,6 +14,11 @@ export const authService = {
   changePassword: (currentPassword: string, newPassword: string) =>
     api.put('/auth/change-password', { currentPassword, newPassword }),
   loginHistory: () => api.get<ApiResponse<LoginAttempt[]>>('/auth/login-history'),
+  getSessions: () => api.get<ApiResponse<Array<{
+    id: string; device: string; ipAddress: string | null; createdAt: string; lastUsedAt: string; expiresAt: string;
+  }>>>('/auth/sessions'),
+  revokeSession: (sessionId: string) => api.delete<ApiResponse<null>>(`/auth/sessions/${sessionId}`),
+  revokeAllSessions: () => api.post<ApiResponse<null>>('/auth/sessions/revoke-all'),
   getTelegramChatId: () => api.get<ApiResponse<{ telegramChatId: string | null }>>('/auth/telegram-chat-id'),
   updateTelegramChatId: (telegramChatId: string) => api.put<ApiResponse<null>>('/auth/telegram-chat-id', { telegramChatId }),
   register: (data: { email: string; password: string; merchantName: string; website?: string; referralCode?: string }) =>

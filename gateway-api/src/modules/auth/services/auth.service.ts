@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { UAParser } from 'ua-parser-js';
 import { AuthRepository } from '../repositories/auth.repository';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../../utils/jwt';
 import { AppError, UnauthorizedError } from '../../../utils/errors';
@@ -109,7 +110,7 @@ export class AuthService {
     const refreshToken = signRefreshToken(newPayload);
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await repo.saveRefreshToken(record.userId, refreshToken, expiresAt);
+    await repo.saveRefreshToken(record.userId, refreshToken, expiresAt, record.ipAddress ?? undefined, record.userAgent ?? undefined);
 
     return { accessToken, refreshToken };
   }
@@ -145,6 +146,46 @@ export class AuthService {
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
+  }
+
+  /**
+   * Danh sách phiên đăng nhập còn hiệu lực (1 refresh token còn sống = 1 phiên).
+   * Không đánh dấu "phiên hiện tại" vì access token không mang theo refresh
+   * token — tránh phải gửi refresh token lên endpoint không liên quan.
+   * Người dùng tự nhận ra phiên của mình qua IP/thiết bị/thời gian hoạt động.
+   */
+  async getSessions(userId: string) {
+    const sessions = await repo.listActiveSessions(userId);
+    return sessions.map((s) => {
+      let device = 'Không xác định';
+      if (s.userAgent) {
+        try {
+          const parsed = new UAParser(s.userAgent).getResult();
+          const browser = parsed.browser.name || 'Trình duyệt không xác định';
+          const os = parsed.os.name || '';
+          device = os ? `${browser} trên ${os}` : browser;
+        } catch {
+          device = 'Không xác định';
+        }
+      }
+      return {
+        id: s.id,
+        device,
+        ipAddress: s.ipAddress,
+        createdAt: s.createdAt,
+        lastUsedAt: s.lastUsedAt,
+        expiresAt: s.expiresAt,
+      };
+    });
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    const deleted = await repo.deleteSessionById(userId, sessionId);
+    if (!deleted) throw new AppError('Phiên không tồn tại hoặc không thuộc về bạn', 404);
+  }
+
+  async revokeAllSessions(userId: string): Promise<void> {
+    await repo.deleteUserRefreshTokens(userId);
   }
 
   /**

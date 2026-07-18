@@ -93,4 +93,24 @@ export class AuthController {
       sendSuccess(res, await service.getLoginHistory(req.user!.userId));
     } catch (err) { next(err); }
   }
+
+  async getSessions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      sendSuccess(res, await service.getSessions(req.user!.userId));
+    } catch (err) { next(err); }
+  }
+
+  async revokeSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await service.revokeSession(req.user!.userId, req.params.sessionId);
+      sendSuccess(res, null, 'Đã thu hồi phiên đăng nhập');
+    } catch (err) { next(err); }
+  }
+
+  async revokeAllSessions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await service.revokeAllSessions(req.user!.userId);
+      sendSuccess(res, null, 'Đã thu hồi toàn bộ phiên đăng nhập — cần đăng nhập lại trên mọi thiết bị');
+    } catch (err) { next(err); }
+  }
 }

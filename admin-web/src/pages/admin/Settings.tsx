@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsService, authService } from '../../services';
 import { useAuthStore } from '../../stores/auth.store';
 import { SendOutlined } from '@ant-design/icons';
+import ActiveSessionsCard from '../../components/common/ActiveSessionsCard';
 
 interface Setting { id: string; key: string; value: string; type: string; group: string }
 
@@ -182,6 +183,9 @@ export default function SettingsPage() {
     <div>
       <Typography.Title level={4} style={{ marginBottom: 24 }}>Cài đặt hệ thống</Typography.Title>
       <TelegramChatIdCard />
+      <div style={{ marginBottom: 16 }}>
+        <ActiveSessionsCard />
+      </div>
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         {Object.entries(grouped).map(([group, settings]) => (
           <Card key={group} title={groupLabel[group] || group} style={{ marginBottom: 16 }}>

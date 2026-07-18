@@ -389,6 +389,11 @@ Giờ: duyệt xong (`PROCESSING`) → hệ thống **tự động ký + gửi U
 - Payout tự động thất bại (vd: ví không đủ số dư, RPC lỗi tạm thời) → withdrawal **giữ nguyên ở PROCESSING** (tiền không mất, vẫn đang `frozenBalance`) → Admin bấm **"Thử lại tự động"** trên trang Rút tiền, hoặc dùng **"Đánh dấu xong (thủ công)"** nếu muốn tự gửi ngoài hệ thống như trước.
 - Có cảnh báo Telegram tự động khi payout thất bại (dùng chung cấu hình `ALERT_TELEGRAM_BOT_TOKEN` ở mục Giám sát).
 
+### Quản lý phiên đăng nhập
+Admin (Cài đặt) và Merchant (Hồ sơ) đều có card "Phiên đăng nhập" — tự xem đang đăng nhập ở thiết bị/trình duyệt nào, IP nào, hoạt động gần nhất lúc nào, tự thu hồi từng phiên hoặc thu hồi tất cả (đăng xuất khỏi mọi thiết bị ngay lập tức).
+
+⚠️ **Tiện thể vá 1 lỗ hổng nhỏ phát hiện được**: trước đây mỗi lần refresh access token (xảy ra định kỳ trong lúc dùng), token mới bị mất thông tin IP/thiết bị gốc — khiến 1 phiên đăng nhập thật sự bị "rời rạc" thành nhiều dòng vô danh trong lúc dùng lâu. Đã sửa để giữ nguyên thông tin thiết bị xuyên suốt vòng đời phiên.
+
 ### Webhook Delivery Log
 Merchant → Webhook Logs: tự tra lịch sử gửi webhook tới Callback URL — thành công/thất bại, HTTP status, response body, lỗi cụ thể, có nút "Gửi lại" thủ công cho giao dịch đã hoàn tất nhưng webhook thất bại.
 
