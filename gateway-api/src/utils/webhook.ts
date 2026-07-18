@@ -21,15 +21,24 @@ export const verifyWebhookSignature = (
   return crypto.timingSafeEqual(expectedBuf, signatureBuf);
 };
 
+export interface WebhookDeliveryResult {
+  success: boolean;
+  statusCode?: number;
+  responseBody?: string;
+  errorMessage?: string;
+  durationMs: number;
+}
+
 export const sendWebhook = async (
   url: string,
   payload: object,
   secret: string,
   attempt = 1
-): Promise<boolean> => {
+): Promise<WebhookDeliveryResult> => {
   const signature = generateWebhookSignature(payload, secret);
+  const startedAt = Date.now();
   try {
-    await axios.post(url, payload, {
+    const res = await axios.post(url, payload, {
       headers: {
         'Content-Type': 'application/json',
         'X-Webhook-Signature': signature,
@@ -37,9 +46,25 @@ export const sendWebhook = async (
       },
       timeout: Number(process.env.WEBHOOK_TIMEOUT_MS) || 5000,
     });
-    return true;
+    return {
+      success: true,
+      statusCode: res.status,
+      responseBody: truncate(typeof res.data === 'string' ? res.data : JSON.stringify(res.data)),
+      durationMs: Date.now() - startedAt,
+    };
   } catch (err) {
-    logger.warn('Webhook delivery failed', { url, attempt, error: (err as Error).message });
-    return false;
+    const axiosErr = err as { response?: { status?: number; data?: unknown }; message: string };
+    logger.warn('Webhook delivery failed', { url, attempt, error: axiosErr.message });
+    return {
+      success: false,
+      statusCode: axiosErr.response?.status,
+      responseBody: axiosErr.response?.data ? truncate(JSON.stringify(axiosErr.response.data)) : undefined,
+      errorMessage: axiosErr.message,
+      durationMs: Date.now() - startedAt,
+    };
   }
 };
+
+function truncate(str: string, max = 2000): string {
+  return str.length > max ? str.slice(0, max) + '... (đã cắt bớt)' : str;
+}

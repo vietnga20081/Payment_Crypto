@@ -6,6 +6,7 @@ import { prisma } from '../../../prisma/client';
 import { AppError, ConflictError, NotFoundError } from '../../../utils/errors';
 import { getPagination, getPaginationMeta } from '../../../utils/response';
 import { generateReferralCode } from '../../../utils/referral-code';
+import { scheduleWebhook } from '../../../jobs/webhook.job';
 
 const repo = new MerchantRepository();
 
@@ -96,6 +97,52 @@ export class MerchantService {
         },
       });
       return { transferredAmount: amount };
+    });
+  }
+
+  async getWebhookLogs(merchantId: string, page: number, limit: number, transactionId?: string) {
+    const { skip, take } = getPagination(page, limit);
+    const where = { merchantId, ...(transactionId && { transactionId }) };
+
+    const [data, total] = await Promise.all([
+      prisma.webhookDeliveryLog.findMany({
+        where,
+        skip, take,
+        orderBy: { createdAt: 'desc' },
+        include: { transaction: { select: { orderId: true, status: true } } },
+      }),
+      prisma.webhookDeliveryLog.count({ where }),
+    ]);
+
+    return { data, meta: getPaginationMeta(total, page, limit) };
+  }
+
+  /** Cho merchant tự bấm gửi lại webhook cho 1 giao dịch (vd: sau khi họ sửa xong endpoint bị lỗi) */
+  async resendWebhook(merchantId: string, transactionId: string) {
+    const tx = await prisma.transaction.findFirst({ where: { id: transactionId, merchantId } });
+    if (!tx) throw new NotFoundError('Giao dịch không tồn tại');
+    if (tx.status !== 'COMPLETED') throw new AppError('Chỉ gửi lại được webhook cho giao dịch đã hoàn tất', 400);
+
+    const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } });
+    if (!merchant?.callbackUrl) throw new AppError('Chưa cấu hình Callback URL', 400);
+
+    await scheduleWebhook({
+      transactionId: tx.id,
+      merchantId,
+      callbackUrl: merchant.callbackUrl,
+      secret: merchant.webhookSecret,
+      payload: {
+        event: 'payment.completed',
+        transactionId: tx.id,
+        orderId: tx.orderId,
+        amount: tx.amount,
+        fee: tx.fee,
+        netAmount: tx.netAmount,
+        txHash: tx.txHash,
+        network: tx.network,
+        status: tx.status,
+        confirmedAt: tx.confirmedAt,
+      },
     });
   }
 

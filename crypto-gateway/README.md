@@ -389,6 +389,11 @@ Giờ: duyệt xong (`PROCESSING`) → hệ thống **tự động ký + gửi U
 - Payout tự động thất bại (vd: ví không đủ số dư, RPC lỗi tạm thời) → withdrawal **giữ nguyên ở PROCESSING** (tiền không mất, vẫn đang `frozenBalance`) → Admin bấm **"Thử lại tự động"** trên trang Rút tiền, hoặc dùng **"Đánh dấu xong (thủ công)"** nếu muốn tự gửi ngoài hệ thống như trước.
 - Có cảnh báo Telegram tự động khi payout thất bại (dùng chung cấu hình `ALERT_TELEGRAM_BOT_TOKEN` ở mục Giám sát).
 
+### Webhook Delivery Log
+Merchant → Webhook Logs: tự tra lịch sử gửi webhook tới Callback URL — thành công/thất bại, HTTP status, response body, lỗi cụ thể, có nút "Gửi lại" thủ công cho giao dịch đã hoàn tất nhưng webhook thất bại.
+
+⚠️ **Đã sửa 1 bug có sẵn từ trước khi làm tính năng này**: `tron-listener`/`bsc-listener` đẩy webhook cần gửi vào 1 Redis list thường (`lpush`), nhưng worker gửi thật (BullMQ) chỉ nghe từ hàng đợi BullMQ — 2 cơ chế khác nhau, không ai đọc list đó cả. Nghĩa là **webhook cho giao dịch hoàn tất qua blockchain thật (không phải Sandbox) trước đây chưa từng được gửi đi**. Đã thêm `webhook-bridge.job.ts` làm cầu nối — chuyển tiếp job từ Redis list sang đúng hàng đợi BullMQ để worker xử lý.
+
 ### Sweep tự động cho BEP20
 Trước đây chỉ TRC20 tự sweep được, BEP20 phải làm thủ công. Giờ cả 2 mạng đều tự sweep HOT → COLD (đúng theo từng mạng — ví COLD đích phải cùng mạng với ví HOT nguồn).
 

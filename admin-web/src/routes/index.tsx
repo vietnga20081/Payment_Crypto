@@ -31,6 +31,7 @@ import SandboxPage from '../pages/merchant/Sandbox';
 import MerchantReconciliationPage from '../pages/merchant/Reconciliation';
 import ApiDocsPage from '../pages/merchant/ApiDocs';
 import ReferralPage from '../pages/merchant/Referral';
+import WebhookLogsPage from '../pages/merchant/WebhookLogs';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'];
 
@@ -79,6 +80,7 @@ export const router = createBrowserRouter([
       { path: 'reconciliation', element: <MerchantReconciliationPage /> },
       { path: 'api-docs', element: <ApiDocsPage /> },
       { path: 'referral', element: <ReferralPage /> },
+      { path: 'webhook-logs', element: <WebhookLogsPage /> },
       { path: 'profile', element: <MerchantProfilePage /> },
     ],
   },

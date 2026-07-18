@@ -4,7 +4,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined, SwapOutlined, ArrowUpOutlined,
   KeyOutlined, UserOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined,
-  ExperimentOutlined, FileSearchOutlined, ApiOutlined, GiftOutlined,
+  ExperimentOutlined, FileSearchOutlined, ApiOutlined, GiftOutlined, SendOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/auth.store';
 import { useLogout } from '../hooks/useAuth';
@@ -19,6 +19,7 @@ const menuItems = [
   { key: '/merchant/reconciliation', icon: <FileSearchOutlined />, label: 'Đối soát' },
   { key: '/merchant/api-keys', icon: <KeyOutlined />, label: 'API Keys' },
   { key: '/merchant/api-docs', icon: <ApiOutlined />, label: 'API Docs' },
+  { key: '/merchant/webhook-logs', icon: <SendOutlined />, label: 'Webhook Logs' },
   { key: '/merchant/referral', icon: <GiftOutlined />, label: 'Giới thiệu (Ref)' },
   { key: '/merchant/profile', icon: <UserOutlined />, label: 'Hồ sơ' },
 ];

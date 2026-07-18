@@ -39,25 +39,39 @@ interface WebhookJobData {
   callbackUrl: string;
   secret: string;
   payload: object;
-  attempt: number;
 }
 
 export const startWebhookWorker = (): Worker => {
   const worker = new Worker<WebhookJobData>(
     'webhooks',
     async (job: Job<WebhookJobData>) => {
-      const { transactionId, callbackUrl, secret, payload, attempt } = job.data;
-      const success = await sendWebhook(callbackUrl, payload, secret, attempt);
+      const { transactionId, merchantId, callbackUrl, secret, payload } = job.data;
+      const attempt = job.attemptsMade + 1; // BullMQ đếm từ 0 — +1 để khớp với "lần thử thứ mấy" cho dễ hiểu
+      const result = await sendWebhook(callbackUrl, payload, secret, attempt);
+
+      await prisma.webhookDeliveryLog.create({
+        data: {
+          transactionId,
+          merchantId,
+          attempt,
+          url: callbackUrl,
+          success: result.success,
+          statusCode: result.statusCode,
+          responseBody: result.responseBody,
+          errorMessage: result.errorMessage,
+          durationMs: result.durationMs,
+        },
+      });
 
       await prisma.transaction.update({
         where: { id: transactionId },
         data: {
           webhookAttempts: { increment: 1 },
-          ...(success && { webhookSentAt: new Date() }),
+          ...(result.success && { webhookSentAt: new Date() }),
         },
       });
 
-      if (!success) throw new Error('Webhook delivery failed');
+      if (!result.success) throw new Error('Webhook delivery failed');
     },
     { connection }
   );
@@ -69,6 +83,6 @@ export const startWebhookWorker = (): Worker => {
   return worker;
 };
 
-export const scheduleWebhook = async (data: Omit<WebhookJobData, 'attempt'>): Promise<void> => {
-  await webhookQueue.add('send', { ...data, attempt: 1 }, JOB_OPTIONS);
+export const scheduleWebhook = async (data: WebhookJobData): Promise<void> => {
+  await webhookQueue.add('send', data, JOB_OPTIONS);
 };

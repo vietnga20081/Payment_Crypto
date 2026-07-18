@@ -3,6 +3,7 @@ import http from 'http';
 import app from './app';
 import { initSocket } from './websocket/socket';
 import { startWebhookWorker } from './jobs/webhook.job';
+import { startWebhookBridge } from './jobs/webhook-bridge.job';
 import { startWatchdog } from './jobs/watchdog.job';
 import { startExpireUnselectedJob } from './jobs/expire-unselected.job';
 import { logger } from './utils/logger';
@@ -18,6 +19,7 @@ async function bootstrap() {
     const server = http.createServer(app);
     initSocket(server);
     startWebhookWorker();
+    startWebhookBridge();
     startWatchdog();
     startExpireUnselectedJob();
 

@@ -15,5 +15,7 @@ router.post('/api-keys', authenticate, authorize('MERCHANT'), [body('name').notE
 router.delete('/api-keys/:keyId', authenticate, authorize('MERCHANT'), ctrl.revokeApiKey.bind(ctrl));
 router.get('/referrals', authenticate, authorize('MERCHANT'), ctrl.getReferrals.bind(ctrl));
 router.post('/referrals/transfer-balance', authenticate, authorize('MERCHANT'), ctrl.transferReferralBalance.bind(ctrl));
+router.get('/webhooks', authenticate, authorize('MERCHANT'), ctrl.getWebhookLogs.bind(ctrl));
+router.post('/webhooks/:transactionId/resend', authenticate, authorize('MERCHANT'), ctrl.resendWebhook.bind(ctrl));
 
 export default router;

@@ -69,6 +69,21 @@ export class MerchantController {
     } catch (err) { next(err); }
   }
 
+  async getWebhookLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { page = 1, limit = 20, transactionId } = req.query;
+      const result = await service.getWebhookLogs(req.user!.merchantId!, +page, +limit, transactionId as string | undefined);
+      sendSuccess(res, result.data, 'OK', 200, result.meta);
+    } catch (err) { next(err); }
+  }
+
+  async resendWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await service.resendWebhook(req.user!.merchantId!, req.params.transactionId);
+      sendSuccess(res, null, 'Đã đưa vào hàng đợi gửi lại webhook');
+    } catch (err) { next(err); }
+  }
+
   async resetOwnWebhookSecret(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       sendSuccess(res, await service.resetOwnWebhookSecret(req.user!.userId), 'Webhook secret đã được làm mới');

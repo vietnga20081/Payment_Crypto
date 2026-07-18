@@ -221,6 +221,27 @@ model ReferralCommission {
   @@map("referral_commissions")
 }
 
+model WebhookDeliveryLog {
+  id            String   @id @default(uuid())
+  transactionId String
+  merchantId    String
+  attempt       Int
+  url           String
+  success       Boolean
+  statusCode    Int?
+  responseBody  String?  @db.Text // cắt bớt nếu quá dài, chỉ để debug
+  errorMessage  String?
+  durationMs    Int?
+  createdAt     DateTime @default(now())
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+  @@index([merchantId])
+  @@index([createdAt])
+  @@map("webhook_delivery_logs")
+}
+
 model ApiKey {
   id          String           @id @default(uuid())
   merchantId  String
@@ -333,6 +354,7 @@ model Transaction {
   wallet                Wallet?           @relation(fields: [walletId], references: [id])
   reconciliation        Reconciliation?   @relation(fields: [reconciliationId], references: [id])
   referralCommission    ReferralCommission?
+  webhookDeliveryLogs   WebhookDeliveryLog[]
 
   @@index([merchantId])
   @@index([orderId])

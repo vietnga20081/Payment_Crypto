@@ -60,6 +60,14 @@ export const merchantService = {
     commissionHistory: Array<{ id: string; amount: string; commissionRate: string; createdAt: string; referred: { name: string } }>;
   }>>('/merchant/referrals'),
   transferReferralBalance: () => api.post<ApiResponse<{ transferredAmount: string | number }>>('/merchant/referrals/transfer-balance'),
+  getWebhookLogs: (params?: { page?: number; limit?: number; transactionId?: string }) =>
+    api.get<ApiResponse<Array<{
+      id: string; transactionId: string; attempt: number; url: string; success: boolean;
+      statusCode: number | null; responseBody: string | null; errorMessage: string | null;
+      durationMs: number | null; createdAt: string;
+      transaction: { orderId: string; status: string };
+    }>> & { meta: PaginationMeta }>('/merchant/webhooks', { params }),
+  resendWebhook: (transactionId: string) => api.post<ApiResponse<null>>(`/merchant/webhooks/${transactionId}/resend`),
 };
 
 // ── Transactions ─────────────────────────────────────────────────────────────
