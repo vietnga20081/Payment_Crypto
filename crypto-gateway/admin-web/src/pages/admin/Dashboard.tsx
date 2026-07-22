@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Card, Typography, Table, Tag, Space, Badge, Progress, Segmented } from 'antd';
+import { Row, Col, Card, Typography, Table, Tag, Space, Badge, Progress, Segmented, Button } from 'antd';
 import type { ColumnType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { reportService, transactionService } from '../../services';
 import StatCard from '../../components/common/StatCard';
 import { formatUSDT, formatDate, txStatusColor, txStatusLabel } from '../../utils';
+import { useAuthStore } from '../../stores/auth.store';
 import {
   DollarOutlined, SwapOutlined, TeamOutlined, ClockCircleOutlined,
   RiseOutlined, FallOutlined, CheckCircleOutlined, SyncOutlined,
+  CalendarOutlined, ExportOutlined,
 } from '@ant-design/icons';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -120,6 +123,9 @@ const CustomTooltip = ({ active, payload, label }: {active?: boolean; payload?: 
 export default function AdminDashboard() {
   const qc = useQueryClient();
   const socket = useSocket();
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const adminName = user?.email ? user.email.split('@')[0] : 'Admin';
   const [trendDays, setTrendDays] = useState(30);
 
   const { data: stats, isLoading } = useQuery({
@@ -183,22 +189,27 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      {/* Welcome banner */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <Title level={4} style={{ margin: 0 }}>Dashboard</Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Cập nhật lúc {dayjs().format('HH:mm:ss DD/MM/YYYY')}
-            {stats?.transactions.confirming ? (
-              <Badge count={stats.transactions.confirming} style={{ marginLeft: 8, background: '#1677ff' }}>
-                <Tag color="blue" style={{ marginLeft: 8 }}>
-                  <SyncOutlined spin /> {stats.transactions.confirming} đang xác nhận
-                </Tag>
-              </Badge>
-            ) : null}
-          </Text>
+          <Title level={3} style={{ margin: 0 }}>👋 Chào mừng trở lại, {adminName}</Title>
+          <Text type="secondary">Tổng quan hoạt động hệ thống Crypto Payment Gateway</Text>
         </div>
+        <Space>
+          <Tag style={{ padding: '6px 12px', fontSize: 13, borderRadius: 8 }}>
+            <CalendarOutlined /> {dayjs().format('DD/MM/YYYY')}
+          </Tag>
+          <Button type="primary" icon={<ExportOutlined />} onClick={() => navigate('/admin/reports')}>
+            Xuất báo cáo
+          </Button>
+        </Space>
       </div>
+
+      {stats?.transactions.confirming ? (
+        <Tag color="blue" style={{ marginBottom: 16 }}>
+          <SyncOutlined spin /> {stats.transactions.confirming} giao dịch đang xác nhận
+        </Tag>
+      ) : null}
 
       {/* KPI Cards Row 1 */}
       <Row gutter={[16, 16]}>
