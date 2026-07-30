@@ -59,6 +59,15 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date()
 // Đọc trực tiếp từ openapi.yaml mỗi request (không cache) để sửa file là
 // thấy ngay, không cần rebuild/restart service.
 const openapiPath = path.join(__dirname, '../openapi.yaml');
+// Swagger UI cần chạy 1 đoạn inline script để bootstrap giao diện — CSP mặc
+// định của helmet() chặn inline script khiến trang bị trắng (chỉ JSON endpoint
+// không bị ảnh hưởng vì không cần chạy script). Gỡ CSP riêng cho route này,
+// các route khác trong app vẫn giữ nguyên CSP như cũ.
+app.use('/api/v1/docs', (_req, res, next) => {
+  res.removeHeader('Content-Security-Policy');
+  next();
+});
+
 app.get('/api/v1/docs/openapi.json', (_req, res) => {
   try {
     const spec = yaml.load(fs.readFileSync(openapiPath, 'utf8'));
