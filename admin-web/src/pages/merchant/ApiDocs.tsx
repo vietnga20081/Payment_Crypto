@@ -454,6 +454,24 @@ def webhook_payment(request):
 x-api-secret: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy`} />
                 </Card>
 
+                <Card style={{ marginBottom: 20, borderRadius: 12 }}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Text strong>📄 OpenAPI / Swagger</Text>
+                    <Text type="secondary" style={{ display: 'block' }}>
+                      Tài liệu API đầy đủ dạng chuẩn OpenAPI 3.0 — có thể import vào Postman/Insomnia,
+                      hoặc dùng để tự sinh SDK client cho ngôn ngữ bạn cần.
+                    </Text>
+                    <Space>
+                      <a href={`${BASE_URL}/api/v1/docs`} target="_blank" rel="noreferrer">
+                        <Button type="primary">Mở Swagger UI</Button>
+                      </a>
+                      <a href={`${BASE_URL}/api/v1/docs/openapi.json`} target="_blank" rel="noreferrer">
+                        <Button>Tải openapi.json</Button>
+                      </a>
+                    </Space>
+                  </Space>
+                </Card>
+
                 {/* Quick key selector */}
                 {apiKeys && apiKeys.length > 0 && (
                   <Card style={{ marginBottom: 20, borderRadius: 12 }} title="🔑 API Key của bạn">

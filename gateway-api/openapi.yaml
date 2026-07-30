@@ -1,0 +1,281 @@
+openapi: 3.0.3
+info:
+  title: Crypto Payment Gateway — Merchant API
+  version: "1.0.0"
+  description: |
+    API công khai dành cho Đại lý (Merchant) tích hợp cổng thanh toán USDT (TRC20/BEP20)
+    vào website của mình.
+
+    ## Xác thực
+    Các endpoint dưới nhóm **Merchant API** cần header `x-api-key` + `x-api-secret`
+    (lấy tại Merchant → API Keys). Các endpoint dưới nhóm **Public (Khách hàng)**
+    không cần xác thực — dùng cho trang thanh toán mà khách hàng cuối truy cập.
+
+    ## Webhook
+    Khi giao dịch hoàn tất, hệ thống gửi `POST` tới `callbackUrl` đã cấu hình,
+    kèm header `X-Webhook-Signature` (HMAC-SHA256 của body, ký bằng Webhook Secret
+    của bạn — xem Merchant → Hồ sơ). Xác minh chữ ký này trước khi tin payload.
+
+    ## Idempotency
+    Gửi kèm header `Idempotency-Key` (tự sinh, khuyến khích UUID) ở endpoint tạo
+    thanh toán để chống tạo trùng giao dịch khi phải gọi lại do timeout mạng.
+  contact:
+    name: Crypto Payment Gateway
+servers:
+  - url: https://payment.v3vn.eu/api/v1
+    description: Production
+  - url: http://localhost:3007/api/v1
+    description: Local development
+
+tags:
+  - name: Merchant API
+    description: Cần xác thực bằng API Key (x-api-key + x-api-secret)
+  - name: Public (Khách hàng)
+    description: Không cần xác thực — dùng trên trang thanh toán khách hàng truy cập
+
+paths:
+  /transactions/pay:
+    post:
+      tags: [Merchant API]
+      summary: Tạo yêu cầu thanh toán
+      description: |
+        Tạo 1 giao dịch mới và trả về địa chỉ ví nhận tiền (nếu đã chỉ định `network`),
+        hoặc trả về giao dịch ở trạng thái "chờ chọn mạng" (nếu không truyền `network`
+        — khách hàng sẽ tự chọn TRC20/BEP20 ngay trên trang thanh toán).
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+          description: Chống tạo trùng giao dịch khi gọi lại với cùng key + cùng nội dung request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderId, amount]
+              properties:
+                orderId:
+                  type: string
+                  description: Mã đơn hàng của bạn — phải là duy nhất cho mỗi giao dịch đang chờ xử lý.
+                  example: "ORDER-2026-001"
+                amount:
+                  type: number
+                  format: float
+                  minimum: 1
+                  description: Số tiền cần thanh toán, tính bằng USDT.
+                  example: 100
+                network:
+                  type: string
+                  enum: [TRC20, BEP20]
+                  description: |
+                    Mạng nhận tiền. Bỏ trống để khách hàng tự chọn ngay trên trang thanh toán.
+                returnUrl:
+                  type: string
+                  format: uri
+                  description: URL chuyển hướng khách hàng về sau khi thanh toán xong.
+      responses:
+        '201':
+          description: Tạo thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Dữ liệu không hợp lệ
+        '409':
+          description: orderId đã có giao dịch đang chờ xử lý, hoặc Idempotency-Key trùng với nội dung khác
+        '429':
+          description: Vượt quá rate limit (60 request/60s mỗi merchant)
+
+  /pay/{transactionId}:
+    get:
+      tags: [Public (Khách hàng)]
+      summary: Lấy thông tin thanh toán (dùng cho trang thanh toán)
+      security: []
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/Transaction'
+                          - type: object
+                            properties:
+                              networkFeeNotes:
+                                type: object
+                                properties:
+                                  TRC20: { type: string, nullable: true }
+                                  BEP20: { type: string, nullable: true }
+        '404':
+          description: Giao dịch không tồn tại
+
+  /pay/{transactionId}/select-network:
+    post:
+      tags: [Public (Khách hàng)]
+      summary: Khách hàng chọn mạng nhận tiền
+      description: |
+        Chỉ áp dụng cho giao dịch được tạo mà KHÔNG chỉ định `network` sẵn.
+        Gán ví thật ngay khi gọi — chỉ gọi được 1 lần cho mỗi giao dịch.
+      security: []
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [network]
+              properties:
+                network:
+                  type: string
+                  enum: [TRC20, BEP20]
+      responses:
+        '200':
+          description: Đã chọn mạng thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Giao dịch đã chọn mạng rồi, đã hết hạn, hoặc network không hợp lệ
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Cần gửi kèm CẢ 2 header: `x-api-key` và `x-api-secret` (lấy tại Merchant → API Keys).
+        OpenAPI không hỗ trợ khai báo 2 API key header cùng lúc trong 1 security scheme —
+        xem ví dụ curl trong mô tả từng endpoint hoặc trang API Docs trong ứng dụng.
+
+  schemas:
+    ApiResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+        meta:
+          type: object
+          properties:
+            page: { type: integer }
+            limit: { type: integer }
+            total: { type: integer }
+            totalPages: { type: integer }
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+        amount:
+          type: string
+          description: Số tiền giao dịch (USDT), dạng chuỗi thập phân chính xác.
+          example: "100.000000"
+        fee:
+          type: string
+          description: Phí dịch vụ bị trừ.
+        netAmount:
+          type: string
+          description: Số tiền thực merchant được cộng vào tài khoản (amount - fee).
+        toAddress:
+          type: string
+          nullable: true
+          description: Địa chỉ ví nhận tiền — null nếu giao dịch đang chờ khách chọn mạng.
+        network:
+          type: string
+          enum: [TRC20, BEP20]
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, CONFIRMING, COMPLETED, EXPIRED, FAILED]
+        confirmations:
+          type: integer
+        requiredConfirmations:
+          type: integer
+        environment:
+          type: string
+          enum: [LIVE, SANDBOX]
+        expiredAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+        returnUrl:
+          type: string
+          nullable: true
+
+    WebhookPayload:
+      type: object
+      description: |
+        Payload gửi tới `callbackUrl` khi giao dịch hoàn tất (`event: payment.completed`).
+        Xác minh header `X-Webhook-Signature` = HMAC-SHA256(JSON.stringify(payload), webhookSecret)
+        trước khi xử lý.
+      properties:
+        event:
+          type: string
+          example: payment.completed
+        transactionId:
+          type: string
+        orderId:
+          type: string
+        amount:
+          type: string
+        fee:
+          type: string
+        netAmount:
+          type: string
+        txHash:
+          type: string
+        network:
+          type: string
+          enum: [TRC20, BEP20]
+        status:
+          type: string
+          example: COMPLETED
+        confirmedAt:
+          type: string
+          format: date-time

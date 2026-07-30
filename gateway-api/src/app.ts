@@ -1,8 +1,12 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
+import yaml from 'js-yaml';
+import fs from 'fs';
+import path from 'path';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { ExpressAdapter } from '@bull-board/express';
@@ -50,6 +54,27 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+
+// ── API Docs (OpenAPI/Swagger) — công khai, không cần đăng nhập ────────────
+// Đọc trực tiếp từ openapi.yaml mỗi request (không cache) để sửa file là
+// thấy ngay, không cần rebuild/restart service.
+const openapiPath = path.join(__dirname, '../openapi.yaml');
+app.get('/api/v1/docs/openapi.json', (_req, res) => {
+  try {
+    const spec = yaml.load(fs.readFileSync(openapiPath, 'utf8'));
+    res.json(spec);
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Không đọc được openapi.yaml', error: (err as Error).message });
+  }
+});
+app.use('/api/v1/docs', swaggerUi.serve, (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const spec = yaml.load(fs.readFileSync(openapiPath, 'utf8')) as Record<string, unknown>;
+    swaggerUi.setup(spec)(req, res, next);
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Không đọc được openapi.yaml', error: (err as Error).message });
+  }
+});
 
 // ── Bull Board — dashboard theo dõi hàng đợi webhook (chỉ ADMIN/SUPER_ADMIN) ──
 const bullBoardAdapter = new ExpressAdapter();

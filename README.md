@@ -315,6 +315,8 @@ sudo certbot --nginx -d example.com -d www.example.com
 
 ## 📡 API Reference
 
+📄 **Tài liệu đầy đủ dạng OpenAPI/Swagger** (tự sinh từ code, luôn khớp thực tế): `https://<domain>/api/v1/docs` — có thể import vào Postman/Insomnia. Spec thô (JSON): `https://<domain>/api/v1/docs/openapi.json`. File nguồn: [`gateway-api/openapi.yaml`](./gateway-api/openapi.yaml) — hiện chỉ phủ **API công khai cho Merchant tích hợp** (`POST /transactions/pay`, trang thanh toán công khai); các route nội bộ dùng bởi chính admin-web (JWT session) chưa đưa vào spec vì không phải đối tượng tích hợp bên thứ 3.
+
 ### Auth
 ```
 POST /api/v1/auth/login           { email, password }

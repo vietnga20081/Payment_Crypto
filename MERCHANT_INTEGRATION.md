@@ -1,6 +1,8 @@
-# Hướng dẫn Tích hợp Thanh toán USDT TRC20
+# Hướng dẫn Tích hợp Thanh toán USDT (TRC20 / BEP20)
 
 Tài liệu này dành cho **Đại lý (Merchant)** muốn tích hợp cổng thanh toán vào website của mình.
+
+> 📄 **Tài liệu API đầy đủ, luôn cập nhật**: xem [OpenAPI/Swagger](../gateway-api/openapi.yaml) tại `https://<domain>/api/v1/docs`. Tài liệu bên dưới mang tính hướng dẫn tổng quan — nếu có chênh lệch, OpenAPI spec là nguồn chính xác nhất vì tự sinh sát với code.
 
 ---
 

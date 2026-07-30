@@ -16,6 +16,7 @@ RUN pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY prisma ./prisma
+COPY openapi.yaml ./openapi.yaml
 RUN mkdir -p logs
 
 ENV NODE_ENV=production
